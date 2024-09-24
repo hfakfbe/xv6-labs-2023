@@ -1,0 +1,6 @@
+void syscall(void);
+7, 表示SYS_exec系统调用
+user mode
+lw	a5,0(a5) 引发异常，之后想要把a5的值赋给num
+访问了无法访问的内存。0x0没有对应的物理内存。scause为0xd表示Load page fault
+initcode，pid为1
