@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "proc.h": "c",
+        "spinlock.h": "c",
+        "param.h": "c",
+        "memlayout.h": "c",
+        "defs.h": "c",
+        "*.tcc": "c",
+        "cmath": "c",
+        "unordered_map": "c",
+        "random": "c",
+        "user.h": "c"
+    }
+}
