@@ -42,6 +42,7 @@ int main(int argc, char *argv[]){
         int pid = fork();
         if(pid == 0){
             exec(buf[0], buf);
+            exit(1);
         }else if(pid < 0){
             // for(int i = 0; buf[i] != 0; i ++){
             //     printf(" %d: %s\n", i, buf[i]);
