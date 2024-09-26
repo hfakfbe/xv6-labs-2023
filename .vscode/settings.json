@@ -9,6 +9,9 @@
         "cmath": "c",
         "unordered_map": "c",
         "random": "c",
-        "user.h": "c"
+        "user.h": "c",
+        "types.h": "c",
+        "string": "c",
+        "functional": "c"
     }
 }
