@@ -146,16 +146,6 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  // speed up syscall
-#ifdef LAB_PGTBL
-  if(p->pid != 1){
-    struct usyscall *usc = kalloc();
-    usc->pid = p->pid;
-    kvmmap(p->pagetable, USYSCALL, (uint64) usc, PGSIZE, PTE_R);
-    printf("%d: map usyscall success\n", p->pid);
-  }
-#endif
-
   return p;
 }
 
@@ -212,6 +202,16 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // speed up syscall
+#ifdef LAB_PGTBL
+    struct usyscall *usc = kalloc();
+    if(usc == 0){
+      panic("usyscall\n");
+    }
+    usc->pid = p->pid;
+    kvmmap(pagetable, USYSCALL, (uint64) usc, PGSIZE, PTE_R | PTE_U);
+#endif
+
   return pagetable;
 }
 
@@ -222,6 +222,9 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+#ifdef LAB_PGTBL
+  uvmunmap(pagetable, USYSCALL, 1, 0);
+#endif
   uvmfree(pagetable, sz);
 }
 
