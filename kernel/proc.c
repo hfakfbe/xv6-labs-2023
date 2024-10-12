@@ -146,6 +146,16 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // speed up syscall
+#ifdef LAB_PGTBL
+  if(p->pid != 1){
+    struct usyscall *usc = kalloc();
+    usc->pid = p->pid;
+    kvmmap(p->pagetable, USYSCALL, (uint64) usc, PGSIZE, PTE_R);
+    printf("%d: map usyscall success\n", p->pid);
+  }
+#endif
+
   return p;
 }
 
