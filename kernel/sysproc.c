@@ -69,12 +69,26 @@ sys_sleep(void)
   return 0;
 }
 
-
 #ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 va, bit, res = 0;
+  int sz;
+  argaddr(0, &va);
+  argint(1, &sz);
+  argaddr(2, &bit);
+  struct proc *p = myproc();
+  // vmprint(p->pagetable);
+  for(int i = 0; i < sz; i ++){
+    pte_t *pte = walk(p->pagetable, va + i * PGSIZE, 0);
+    // printf("pte %p pa %p\n", *pte, pte);
+    res |= ((*pte & PTE_A) != 0) << i;
+    *pte &= ~PTE_A;
+  }
+  if(copyout(p->pagetable, bit, (char *) (&res), 4) < 0){
+    return -1;
+  }
   return 0;
 }
 #endif
