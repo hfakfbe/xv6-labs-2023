@@ -11,7 +11,7 @@
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
-            "miDebuggerServerAddress": "127.0.0.1:26000",
+            "miDebuggerServerAddress": "127.0.0.1:26001",
             //这里实际上可以用各种能调试的gdb，如果找不到你可以使用which gdb-multiarch
             "miDebuggerPath": "/usr/bin/gdb-multiarch",
             "environment": [],
