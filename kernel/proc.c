@@ -132,6 +132,16 @@ found:
     return 0;
   }
 
+  // speed up syscall
+#ifdef LAB_PGTBL
+  if((p->usc = (struct usyscall *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  p->usc->pid = p->pid;
+#endif
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -158,6 +168,11 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+#ifdef LAB_PGTBL
+  if(p->usc)
+    kfree((void *)p->usc);
+  p->usc = 0;
+#endif
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -202,14 +217,13 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
-  // speed up syscall
 #ifdef LAB_PGTBL
-    struct usyscall *usc = kalloc();
-    if(usc == 0){
-      panic("usyscall\n");
-    }
-    usc->pid = p->pid;
-    kvmmap(pagetable, USYSCALL, (uint64) usc, PGSIZE, PTE_R | PTE_U);
+  if(mappages(pagetable, USYSCALL, PGSIZE, (uint64) p->usc, PTE_R | PTE_U) < 0){
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
 #endif
 
   return pagetable;

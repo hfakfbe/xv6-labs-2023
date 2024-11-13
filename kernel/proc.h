@@ -104,4 +104,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // accelerate syscall
+#ifdef LAB_PGTBL
+  struct usyscall *usc;
+#endif
 };
