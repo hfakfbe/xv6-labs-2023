@@ -67,6 +67,7 @@ exec(char *path, char **argv)
     sz = sz1;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
+    // printf("loadseg: %p, %x\n", ph.vaddr, ph.memsz);
   }
   iunlockput(ip);
   end_op();
@@ -86,6 +87,8 @@ exec(char *path, char **argv)
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
   stackbase = sp - PGSIZE;
+
+  // printf("stackbase: %p\n", stackbase);
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
