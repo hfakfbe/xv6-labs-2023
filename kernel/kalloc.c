@@ -13,6 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
+uint16 cow_map[PHYSTOP / PGSIZE];
 
 struct run {
   struct run *next;
@@ -27,6 +28,9 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  for(int i = 0; i < PHYSTOP / PGSIZE; i ++){
+    cow_map[i] = 1;
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -50,6 +54,10 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+  
+  if(-- cow_map[(uint64)pa / PGSIZE] > 0){
+    return;
+  }
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -72,8 +80,10 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
+    cow_map[(uint64)r / PGSIZE] = 1;
+  }
   release(&kmem.lock);
 
   if(r)
