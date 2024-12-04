@@ -12,6 +12,7 @@ uint ticks;
 extern char trampoline[], uservec[], userret[];
 
 extern uint16 cow_map[];
+extern struct spinlock cow_map_lock;
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -69,32 +70,22 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 5 || r_scause() == 15) {
-    // load access fault
-    p->trapframe->epc -= 4;
-    uint64 addr = r_stval();
-    uint64 pa;
-    pte_t *pte = walk(p->pagetable, addr, 0);
-    if(*pte & PTE_C){
-      if((pa = (uint64) kalloc()) == 0){
-        if(-- cow_map[PTE2PA(*pte) / PGSIZE] == 0){
-          kfree((void *) PTE2PA(*pte));
-        }
-        printf("usertrap(): kalloc failed\n");
-        setkilled(p);
-      }
-      memmove((char*)pa, (char*)addr, PGSIZE);
-      if(-- cow_map[PTE2PA(*pte) / PGSIZE] == 0){
-        kfree((void *) PTE2PA(*pte));
-      }
-      *pte &= ~PTE_C;
-      *pte |= PTE_W;
-      *pte = PA2PTE(pa) | PTE_FLAGS(*pte);
+  } else if(r_scause() == 13 || r_scause() == 15) {
+    // printf("usertrap(): cow1\n");
+    uint64 va = r_stval();
+    pte_t *pte = walk(p->pagetable, va, 0);
+    // printf("usertrap(): cow2\n");
+    if(pte && (*pte & PTE_V) && (*pte & PTE_C)){
+      // printf("usertrap(): cow3\n");
+      kcopy_cow(pte);
+      p->trapframe->epc -= 4;
     }else{
       printf("usertrap(): cannot write\n");
       setkilled(p);
     }
   } else {
+    pte_t *pte = walk(p->pagetable, r_stval(), 0);
+    printf("%p\n", cow_map[PTE2PA(*pte) / PGSIZE]);
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);

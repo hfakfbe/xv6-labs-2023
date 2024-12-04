@@ -14,6 +14,7 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 uint16 cow_map[PHYSTOP / PGSIZE];
+struct spinlock cow_map_lock;
 
 struct run {
   struct run *next;
@@ -28,6 +29,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&cow_map_lock, "cow_map");
   for(int i = 0; i < PHYSTOP / PGSIZE; i ++){
     cow_map[i] = 1;
   }
@@ -55,9 +57,12 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
   
+  acquire(&cow_map_lock);
   if(-- cow_map[(uint64)pa / PGSIZE] > 0){
+    release(&cow_map_lock);
     return;
   }
+  release(&cow_map_lock);
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -89,4 +94,36 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+void 
+kinc_cow_map(void *pa)
+{
+  acquire(&cow_map_lock);
+  cow_map[(uint64)pa / PGSIZE] ++;
+  release(&cow_map_lock);
+}
+
+void 
+kdec_cow_map(void *pa)
+{
+  kfree(pa);
+}
+
+// pte must have PTE_V and PTE_C flag
+void 
+kcopy_cow(pte_t *pte)
+{
+  uint64 pa0 = PTE2PA(*pte), pa;
+  if((pa = (uint64) kalloc()) == 0){
+    kdec_cow_map((void *) pa0);
+    printf("kcopy_cow(): kalloc failed\n");
+    setkilled(myproc());
+    exit(-1);
+  }
+  memmove((char*)pa, (char*)pa0, PGSIZE);
+  kdec_cow_map((void *) pa0);
+  *pte &= ~PTE_C;
+  *pte |= PTE_W;
+  *pte = PA2PTE(pa) | PTE_FLAGS(*pte);
 }

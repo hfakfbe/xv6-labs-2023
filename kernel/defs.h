@@ -63,6 +63,9 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            kinc_cow_map(void *);
+void            kdec_cow_map(void *);
+void            kcopy_cow(pte_t *);
 
 // log.c
 void            initlog(int, struct superblock*);
