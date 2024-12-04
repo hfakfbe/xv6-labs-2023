@@ -85,7 +85,7 @@ usertrap(void)
     }
   } else {
     pte_t *pte = walk(p->pagetable, r_stval(), 0);
-    printf("%p\n", cow_map[PTE2PA(*pte) / PGSIZE]);
+    printf("cow_map:%d pte:%p\n", (int)cow_map[PTE2PA(*pte) / PGSIZE], *pte);
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
