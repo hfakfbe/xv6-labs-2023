@@ -325,27 +325,22 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
       
+    if(*pte & PTE_W){
+      *pte &= ~PTE_W;
+      *pte |= PTE_C;
+    }
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if(flags & PTE_W){
-      flags &= ~PTE_W;
-      flags |= PTE_C;
-    }
     kinc_cow_map((void *) pa);
     if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
+      kfree((char *) pa);
       goto err;
     }
   }
   return 0;
 
  err:
-  uvmunmap(new, 0, i / PGSIZE, 0);
-  for(; i >= 0; i -= PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
-    pa = PTE2PA(*pte);
-    kdec_cow_map((void *) pa);
-  }
+  uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
 
@@ -377,7 +372,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       return -1;
     pte = walk(pagetable, va0, 0);
     if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
-       (*pte & PTE_W) == 0)
+       ((*pte & PTE_W) == 0 && (*pte & PTE_C) == 0))
       return -1;
 
     // cow

@@ -71,16 +71,17 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if(r_scause() == 13 || r_scause() == 15) {
-    // printf("usertrap(): cow1\n");
     uint64 va = r_stval();
-    pte_t *pte = walk(p->pagetable, va, 0);
-    // printf("usertrap(): cow2\n");
-    if(pte && (*pte & PTE_V) && (*pte & PTE_C)){
-      // printf("usertrap(): cow3\n");
-      kcopy_cow(pte);
-      p->trapframe->epc -= 4;
+    if(va < MAXVA){
+      pte_t *pte = walk(p->pagetable, va, 0);
+      if(pte && (*pte & PTE_V) && (*pte & PTE_C)){
+        kcopy_cow(pte);
+      }else{
+        printf("usertrap(): cannot write\n");
+        setkilled(p);
+      }
     }else{
-      printf("usertrap(): cannot write\n");
+      printf("usertrap(): invalid address\n");
       setkilled(p);
     }
   } else {

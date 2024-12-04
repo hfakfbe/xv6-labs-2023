@@ -122,8 +122,8 @@ kcopy_cow(pte_t *pte)
     exit(-1);
   }
   memmove((char*)pa, (char*)pa0, PGSIZE);
-  kdec_cow_map((void *) pa0);
   *pte &= ~PTE_C;
   *pte |= PTE_W;
   *pte = PA2PTE(pa) | PTE_FLAGS(*pte);
+  kdec_cow_map((void *) pa0);
 }
