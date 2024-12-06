@@ -8,6 +8,13 @@
 #define NBUCKET 5
 #define NKEYS 100000
 
+/*
+pthread_mutex_t lock;            // 声明一个锁
+pthread_mutex_init(&lock, NULL); // 初始化锁
+pthread_mutex_lock(&lock);       // 获取锁
+pthread_mutex_unlock(&lock);     // 释放锁
+*/
+
 struct entry {
   int key;
   int value;
@@ -17,6 +24,23 @@ struct entry *table[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
 
+int readcount[NBUCKET];
+pthread_mutex_t lock_w[NBUCKET], lock_readcount[NBUCKET], lock_wrt[NBUCKET];
+
+/*
+wrt=1：写者之间互斥，写者与读者之间互斥
+rmutex=1：读者之间对计数器readcount的互斥
+w=1：实现写者优先
+*/
+
+void initlock(){
+  for(int i = 0; i < NBUCKET; i ++){
+    readcount[i] = 0;
+    pthread_mutex_init(&lock_w[i], NULL);
+    pthread_mutex_init(&lock_readcount[i], NULL);
+    pthread_mutex_init(&lock_wrt[i], NULL);
+  }
+}
 
 double
 now()
@@ -41,6 +65,9 @@ void put(int key, int value)
 {
   int i = key % NBUCKET;
 
+  pthread_mutex_lock(&lock_w[i]);
+  pthread_mutex_lock(&lock_wrt[i]);
+
   // is the key already present?
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
@@ -55,6 +82,8 @@ void put(int key, int value)
     insert(key, value, &table[i], table[i]);
   }
 
+  pthread_mutex_unlock(&lock_wrt[i]);
+  pthread_mutex_unlock(&lock_w[i]);
 }
 
 static struct entry*
@@ -62,12 +91,27 @@ get(int key)
 {
   int i = key % NBUCKET;
 
+  pthread_mutex_lock(&lock_w[i]);
+  pthread_mutex_lock(&lock_readcount[i]);
+  if(readcount[i] == 0){
+    pthread_mutex_lock(&lock_wrt[i]);
+  }
+  readcount[i] ++;
+  pthread_mutex_unlock(&lock_readcount[i]);
+  pthread_mutex_unlock(&lock_w[i]);
 
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key) break;
   }
 
+  pthread_mutex_lock(&lock_readcount[i]);
+  readcount[i] --;
+  if(readcount[i] == 0){
+    pthread_mutex_unlock(&lock_wrt[i]);
+  }
+  pthread_mutex_unlock(&lock_readcount[i]);
+  
   return e;
 }
 
@@ -105,6 +149,7 @@ main(int argc, char *argv[])
   void *value;
   double t1, t0;
 
+  initlock();
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s nthreads\n", argv[0]);
