@@ -256,6 +256,10 @@ dns()
   close(fd);
 }  
 
+#ifndef NET_TESTS_PORT
+#define NET_TESTS_PORT 80
+#endif
+
 int
 main(int argc, char *argv[])
 {
