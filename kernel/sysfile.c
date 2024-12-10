@@ -590,8 +590,7 @@ sys_munmap(void)
 
   // find the VMA
   for (i = 0; i < NVMA; ++i) {
-    if (p->vma[i].addr && addr >= p->vma[i].addr
-        && addr + len <= p->vma[i].addr + p->vma[i].len) {
+    if (p->vma[i].addr && addr >= p->vma[i].addr && addr + len <= p->vma[i].addr + p->vma[i].len) {
       vma = &p->vma[i];
       break;
     }
@@ -604,9 +603,9 @@ sys_munmap(void)
     return 0;
   }
 
+  maxsz = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
   if ((vma->flags & MAP_SHARED)) {
     // the max size once can write to the disk
-    maxsz = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
     for (va = addr; va < addr + len; va += PGSIZE) {
       if (uvmgetdirty(p->pagetable, va) == 0) {
         continue;
@@ -634,9 +633,7 @@ sys_munmap(void)
       }
     }
   }
-  printf(">");
   uvmunmap(p->pagetable, addr, (len - 1) / PGSIZE + 1, 1);
-  printf("<");
   // update the vma
   if (addr == vma->addr && len == vma->len) {
     vma->addr = 0;

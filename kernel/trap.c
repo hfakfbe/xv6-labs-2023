@@ -82,8 +82,7 @@ usertrap(void)
     for (i = 0; i < NVMA; ++i) {
       // like the Linux mmap, it can modify the remaining bytes in
       //the end of mapped page
-      if (p->vma[i].addr && va >= p->vma[i].addr
-          && va < p->vma[i].addr + p->vma[i].len) {
+      if (p->vma[i].addr && va >= p->vma[i].addr && va < p->vma[i].addr + p->vma[i].len) {
         vma = &p->vma[i];
         break;
       }
@@ -92,8 +91,7 @@ usertrap(void)
       goto err;
     }
     // set write flag and dirty flag to the mapped page's PTE
-    if (r_scause() == 15 && (vma->prot & PROT_WRITE)
-        && walkaddr(p->pagetable, va)) {
+    if (r_scause() == 15 && (vma->prot & PROT_WRITE) && walkaddr(p->pagetable, va)) {
       if (uvmsetdirtywrite(p->pagetable, va)) {
         goto err;
       }
