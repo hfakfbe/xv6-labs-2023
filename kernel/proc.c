@@ -3,8 +3,12 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -302,6 +306,14 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+ // copy all of VMA - lab10
+  for (i = 0; i < NVMA; i ++) {
+    if (p->vma[i].addr) {
+      np->vma[i] = p->vma[i];
+      filedup(np->vma[i].f);
+    }
+  }
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -346,10 +358,58 @@ reparent(struct proc *p)
 void
 exit(int status)
 {
-  struct proc *p = myproc();
+struct proc *p = myproc();
+  // lab10
+  int i;
+  struct vm_area* vma;
+  uint maxsz = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
+  uint64 va;
+  uint n, n1, r;
 
   if(p == initproc)
     panic("init exiting");
+
+  // unmap the mapped memory - lab10
+  for (i = 0; i < NVMA; ++i) {
+    if (p->vma[i].addr == 0) {
+      continue;
+    }
+    vma = &p->vma[i];
+    if ((vma->flags & MAP_SHARED)) {
+      for (va = vma->addr; va < vma->addr + vma->len; va += PGSIZE) {
+        if (uvmgetdirty(p->pagetable, va) == 0) {
+          continue;
+        }
+        n = vma->addr + vma->len - va;
+        if(n > PGSIZE){
+          n = PGSIZE;
+        }
+        for (r = 0; r < n; r += n1) {
+          n1 = n - i;
+          if(n1 > maxsz){
+            n1 = maxsz;
+          }
+          begin_op();
+          ilock(vma->f->ip);
+          if (writei(vma->f->ip, 1, va + i, va - vma->addr + vma->offset + i, n1) != n1) {
+            iunlock(vma->f->ip);
+            end_op();
+            panic("exit: writei failed");
+          }
+          iunlock(vma->f->ip);
+          end_op();
+        }
+      }
+    }
+    uvmunmap(p->pagetable, vma->addr, (vma->len - 1) / PGSIZE + 1, 1);
+    vma->addr = 0;
+    vma->len = 0;
+    vma->offset = 0;
+    vma->flags = 0;
+    vma->offset = 0;
+    fileclose(vma->f);
+    vma->f = 0;
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){

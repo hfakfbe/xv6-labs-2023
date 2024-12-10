@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "defs.h": "c",
+        "fcntl.h": "c",
+        "file.h": "c",
+        "string_view": "c",
+        "netfwd": "c",
+        "proc.h": "c",
+        "limits": "c"
+    },
+    "C_Cpp.dimInactiveRegions": false
+}
