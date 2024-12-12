@@ -13,5 +13,6 @@
         "types.h": "c",
         "string": "c",
         "functional": "c"
-    }
+    },
+    "C_Cpp.dimInactiveRegions": false
 }
