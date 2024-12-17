@@ -102,22 +102,22 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
-  acquire(&e1000_lock);//加🔓
-  int ring_idx = regs[E1000_TDT];//获取下一个环索引
-  if(tx_ring[ring_idx].status & E1000_TXD_STAT_DD){//检查索引到的位置E1000有没有完成先前的传输请求
-    if(tx_mbufs[ring_idx])//检查用于传输上一个包的缓冲区是否被释放
-      mbuffree(tx_mbufs[ring_idx]);//释放缓冲区
-    tx_ring[ring_idx].addr = (uint64) m->head;//填写描述符addr字段使其指向当前缓冲区
-    tx_ring[ring_idx].length = m->len;//填写描述符length字段
-    tx_ring[ring_idx].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;//查看e1000开发者手册3.3.3.1的Notes部分
+  acquire(&e1000_lock);
+  int ring_idx = regs[E1000_TDT];
+  if(tx_ring[ring_idx].status & E1000_TXD_STAT_DD){
+    if(tx_mbufs[ring_idx])
+      mbuffree(tx_mbufs[ring_idx]);
+    tx_ring[ring_idx].addr = (uint64) m->head;
+    tx_ring[ring_idx].length = m->len;
+    tx_ring[ring_idx].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
     tx_mbufs[ring_idx] = m;
-    __sync_synchronize();//内存屏障，防止指令重排
+    __sync_synchronize();
     regs[E1000_TDT] = (regs[E1000_TDT]+1) % TX_RING_SIZE;
-    release(&e1000_lock);//解🔓
+    release(&e1000_lock);
     return 0;
   } else {
-    release(&e1000_lock);//解🔓
-    return -1;//error
+    release(&e1000_lock);
+    return -1;
   }
 }
 
@@ -131,17 +131,17 @@ e1000_recv(void)
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
   while(1){//一次处理多个包,防止丢失
-    int ring_idx = (regs[E1000_RDT] + 1) % RX_RING_SIZE;//获取下一个环索引
-    if(rx_ring[ring_idx].status & E1000_TXD_STAT_DD){//检查索引到的位置是否有数据包待接受
-      rx_mbufs[ring_idx]->len = rx_ring[ring_idx].length;//将数据长度存入缓冲区结构体
-      net_rx(rx_mbufs[ring_idx]);//将数据包交给net_rx解析
-      rx_mbufs[ring_idx] = mbufalloc(0);//申请新缓冲区
-      if (!rx_mbufs[ring_idx])//判断是否申请成功
+    int ring_idx = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+    if(rx_ring[ring_idx].status & E1000_TXD_STAT_DD){
+      rx_mbufs[ring_idx]->len = rx_ring[ring_idx].length;
+      net_rx(rx_mbufs[ring_idx]);
+      rx_mbufs[ring_idx] = mbufalloc(0);
+      if (!rx_mbufs[ring_idx])
         panic("e1000");
-      rx_ring[ring_idx].addr = (uint64) rx_mbufs[ring_idx]->head;//缓冲区首地址存入描述符结构体
-      rx_ring[ring_idx].status = 0;//将描述符的状态位清除为零
-      __sync_synchronize();//内存屏障，防止指令重排
-      regs[E1000_RDT] = ring_idx;//修改尾指针寄存器
+      rx_ring[ring_idx].addr = (uint64) rx_mbufs[ring_idx]->head;
+      rx_ring[ring_idx].status = 0;
+      __sync_synchronize();
+      regs[E1000_RDT] = ring_idx;
     }
     else return;
   }
